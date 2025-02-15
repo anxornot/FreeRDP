@@ -23,6 +23,7 @@
 #define FREERDP_H
 
 #include <winpr/stream.h>
+#include <winpr/sspi.h>
 
 #include <freerdp/api.h>
 #include <freerdp/types.h>
@@ -416,7 +417,7 @@ owned by rdpRdp */
 		             size to allocate the context buffer. freerdp_new() sets it to
 		             sizeof(rdpContext). If modifying it, there should always be a minimum of
 		             sizeof(rdpContext), as the freerdp library will assume it can use the 'context'
-		             field to set the required informations in it. Clients will typically make it
+		             field to set the required information in it. Clients will typically make it
 		             bigger, and use a context structure embedding the rdpContext, and adding
 		             additional information after that.
 		          */
@@ -538,10 +539,10 @@ owned by rdpRdp */
 		                                 It is used to get the username/password. The reason
 		                                 argument tells why it was called.  */
 		ALIGN64 pChooseSmartcard
-		    ChooseSmartcard;      /* (offset 70)
-		                        Callback for choosing a smartcard for logon.
-		                        Used when multiple smartcards are available. Returns an index into a list
-		                        of SmartcardCertInfo pointers	*/
+		    ChooseSmartcard;                    /* (offset 70)
+		                                      Callback for choosing a smartcard for logon.
+		                                      Used when multiple smartcards are available. Returns an index into a list
+		                                      of SmartcardCertInfo pointers	*/
 		ALIGN64 pGetAccessToken GetAccessToken; /* (offset 71)
 		                                            Callback for obtaining an access token
 		                                            for \b AccessTokenType authentication */
@@ -575,7 +576,7 @@ owned by rdpRdp */
 	WINPR_DEPRECATED_VAR("use freerdp_shall_disconnect_context instead",
 	                     FREERDP_API BOOL freerdp_shall_disconnect(freerdp* instance));
 
-	FREERDP_API BOOL freerdp_shall_disconnect_context(rdpContext* context);
+	FREERDP_API BOOL freerdp_shall_disconnect_context(const rdpContext* context);
 	FREERDP_API BOOL freerdp_disconnect(freerdp* instance);
 
 	WINPR_DEPRECATED_VAR("use freerdp_disconnect_before_reconnect_context instead",
@@ -660,6 +661,40 @@ owned by rdpRdp */
 
 	FREERDP_API UINT32 freerdp_get_nla_sspi_error(rdpContext* context);
 
+	/** Encrypts the provided buffer using the NLA's GSSAPI context
+	 *
+	 *	\param context the RDP context
+	 *	\param inBuffer the SecBuffer buffer to encrypt
+	 *	\param outBuffer a SecBuffer to hold the encrypted content
+	 *	\returns if the operation completed successfully
+	 *	\since version 3.9.0
+	 */
+	FREERDP_API BOOL freerdp_nla_encrypt(rdpContext* context, const SecBuffer* inBuffer,
+	                                     SecBuffer* outBuffer);
+
+	/** Decrypts the provided buffer using the NLA's GSSAPI context
+	 *
+	 *	\param context the RDP context
+	 *	\param inBuffer the SecBuffer buffer to decrypt
+	 *	\param outBuffer a SecBuffer to hold the decrypted content
+	 *	\returns if the operation completed successfully
+	 *	\since version 3.9.0
+	 */
+	FREERDP_API BOOL freerdp_nla_decrypt(rdpContext* context, const SecBuffer* inBuffer,
+	                                     SecBuffer* outBuffer);
+
+	/** Calls QueryContextAttributes on the SSPI context associated with the NLA part of
+	 * the RDP context
+	 *
+	 *	\param context the RDP context
+	 *	\param ulAttr the attribute
+	 *	\param pBuffer an opaque pointer depending on ulAttr
+	 *	\returns a SECURITY_STATUS indicating if the operation completed successfully
+	 *	\since version 3.9.0
+	 */
+	FREERDP_API SECURITY_STATUS freerdp_nla_QueryContextAttributes(rdpContext* context,
+	                                                               DWORD ulAttr, PVOID pBuffer);
+
 	FREERDP_API void clearChannelError(rdpContext* context);
 	FREERDP_API HANDLE getChannelErrorEventHandle(rdpContext* context);
 	FREERDP_API UINT getChannelError(rdpContext* context);
@@ -700,6 +735,20 @@ owned by rdpRdp */
 
 	FREERDP_API BOOL freerdp_is_valid_mcs_create_request(const BYTE* data, size_t size);
 	FREERDP_API BOOL freerdp_is_valid_mcs_create_response(const BYTE* data, size_t size);
+
+	/** \brief Persist the current credentials (gateway, target server, ...)
+	 *
+	 *  FreeRDP internally keeps a backup of connection settings to revert to whenever a reconnect
+	 * is required. If a client modifies settings during runtime after pre-connect call this
+	 * function or the credentials will be lost on any reconnect, redirect, ...
+	 *
+	 *  \param context The RDP context to use, must not be \b NULL
+	 *
+	 *  \return \b TRUE if successful, \b FALSE if settings could not be applied (wrong session
+	 * state, ...)
+	 *  \since version 3.12.0
+	 */
+	FREERDP_API BOOL freerdp_persist_credentials(rdpContext* context);
 
 #ifdef __cplusplus
 }
